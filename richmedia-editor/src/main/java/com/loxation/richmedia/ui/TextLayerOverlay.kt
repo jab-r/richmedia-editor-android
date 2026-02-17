@@ -2,8 +2,8 @@ package com.loxation.richmedia.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -21,8 +21,11 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -57,17 +60,16 @@ internal fun TextLayerOverlay(
     onLongPress: (() -> Unit)? = null
 ) {
     val density = LocalDensity.current
+    val viewConfiguration = LocalViewConfiguration.current
     val pos = layer.position
     val style = layer.style
 
-    // Mutable gesture state for smooth interaction
-    var currentX by remember(pos.x) { mutableFloatStateOf(pos.x) }
-    var currentY by remember(pos.y) { mutableFloatStateOf(pos.y) }
+    // Mutable gesture state — pixel coordinates during drag (like iOS),
+    // converted back to normalized (0-1) on gesture end.
+    var currentX by remember(pos.x) { mutableFloatStateOf(pos.x * canvasSize.width) }
+    var currentY by remember(pos.y) { mutableFloatStateOf(pos.y * canvasSize.height) }
     var currentScale by remember(pos.scale) { mutableFloatStateOf(pos.scale) }
     var currentRotation by remember(pos.rotation) { mutableFloatStateOf(pos.rotation) }
-
-    val offsetXPx = currentX * canvasSize.width
-    val offsetYPx = currentY * canvasSize.height
 
     val animModifier = if (isPlaying) {
         AnimationRenderer.animatedModifier(layer)
@@ -93,8 +95,8 @@ internal fun TextLayerOverlay(
     Box(
         modifier = Modifier
             .offset(
-                x = with(density) { offsetXPx.toDp() },
-                y = with(density) { offsetYPx.toDp() }
+                x = with(density) { currentX.toDp() },
+                y = with(density) { currentY.toDp() }
             )
             .graphicsLayer {
                 scaleX = currentScale
@@ -110,32 +112,70 @@ internal fun TextLayerOverlay(
             )
             .then(
                 if (isEditing) {
-                    Modifier
-                        .pointerInput(layer.id) {
-                            detectTapGestures(
-                                onTap = { onSelected() },
-                                onLongPress = { onLongPress?.invoke() }
-                            )
-                        }
-                        .pointerInput(layer.id) {
-                            detectTransformGestures { _, pan, zoom, rotation ->
-                                currentX = (currentX + pan.x / canvasSize.width).coerceIn(0f, 1f)
-                                currentY = (currentY + pan.y / canvasSize.height).coerceIn(0f, 1f)
-                                currentScale = (currentScale * zoom).coerceIn(0.5f, 3.0f)
-                                currentRotation = (currentRotation + rotation) % 360f
+                    // Single pointerInput handles tap, long press, and drag
+                    // to avoid conflicts between separate gesture detectors.
+                    // Matches iOS pattern: drag uses absolute position tracking.
+                    Modifier.pointerInput(layer.id) {
+                        val touchSlop = viewConfiguration.touchSlop
+                        val longPressTimeoutMs = viewConfiguration.longPressTimeoutMillis
+                        awaitEachGesture {
+                            val down = awaitFirstDown()
+                            down.consume()
+                            val downPosition = down.position
+                            var isDragging = false
+                            var longPressFired = false
+                            val downTime = System.currentTimeMillis()
+
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull() ?: break
+
+                                if (change.changedToUp()) {
+                                    change.consume()
+                                    if (!isDragging && !longPressFired) {
+                                        onSelected()
+                                    }
+                                    if (isDragging) {
+                                        val nx = (currentX / canvasSize.width).coerceIn(0f, 1f)
+                                        val ny = (currentY / canvasSize.height).coerceIn(0f, 1f)
+                                        onPositionChanged(pos.copy(
+                                            x = nx, y = ny,
+                                            scale = currentScale,
+                                            rotation = currentRotation
+                                        ))
+                                    }
+                                    break
+                                }
+
+                                if (!isDragging && !longPressFired) {
+                                    val elapsed = System.currentTimeMillis() - downTime
+                                    if (elapsed >= longPressTimeoutMs) {
+                                        longPressFired = true
+                                        onSelected()
+                                        onLongPress?.invoke()
+                                    }
+                                }
+
+                                // Check total distance from initial touch point
+                                val totalDist = (change.position - downPosition).getDistance()
+                                if (!isDragging && totalDist > touchSlop) {
+                                    isDragging = true
+                                    onSelected()
+                                }
+
+                                if (isDragging) {
+                                    change.consume()
+                                    val delta = change.positionChange()
+                                    currentX += delta.x
+                                    currentY += delta.y
+                                }
                             }
                         }
+                    }
                 } else Modifier
             )
     ) {
         StyledText(layer = layer, style = style)
-    }
-
-    // Commit gesture changes when they end
-    LaunchedEffect(currentX, currentY, currentScale, currentRotation) {
-        if (isEditing && (currentX != pos.x || currentY != pos.y || currentScale != pos.scale || currentRotation != pos.rotation)) {
-            onPositionChanged(pos.copy(x = currentX, y = currentY, scale = currentScale, rotation = currentRotation))
-        }
     }
 }
 

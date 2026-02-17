@@ -130,34 +130,12 @@ fun AnimatedPostEditorScreen(
                 }
             )
         },
-        bottomBar = {
-            if (state.blocks.isNotEmpty()) {
-                EditorBottomToolbar(
-                    isPlaying = state.isPlaying,
-                    hasBlocks = state.blocks.isNotEmpty(),
-                    onTogglePlay = { viewModel.togglePlayback() },
-                    onAddMedia = { launchPhotoPicker() },
-                    onAddText = {
-                        val blockId = state.selectedBlockId ?: state.blocks.firstOrNull()?.id
-                        if (blockId != null) {
-                            viewModel.addTextLayer(blockId)
-                            val newLayerId = viewModel.state.value.selectedLayerId
-                            if (newLayerId != null) {
-                                editingLayerId = newLayerId
-                                floatingText = "Text"
-                            }
-                        }
-                    },
-                    onAddLottie = { showLottiePicker = true },
-                    onHelp = { showHelp = true }
-                )
-            }
-        }
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .navigationBarsPadding()
                 .background(
                     Brush.linearGradient(
                         colors = listOf(
@@ -165,17 +143,20 @@ fun AnimatedPostEditorScreen(
                             MaterialTheme.colorScheme.surfaceVariant
                         )
                     )
-                ),
-            contentAlignment = Alignment.Center
+                )
         ) {
-            if (state.blocks.isEmpty()) {
-                EmptyStateView(onAddMedia = { launchPhotoPicker() })
-            } else {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (state.blocks.isEmpty()) {
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        EmptyStateView(onAddMedia = { launchPhotoPicker() })
+                    }
+                } else {
                     GalleryCanvasView(
                         blocks = state.blocks,
                         selectedBlockId = state.selectedBlockId,
@@ -215,6 +196,29 @@ fun AnimatedPostEditorScreen(
                             showTextEditor = true
                         },
                         modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
+                    )
+                }
+
+                // Bottom toolbar — inline so it's always visible
+                if (state.blocks.isNotEmpty()) {
+                    EditorBottomToolbar(
+                        isPlaying = state.isPlaying,
+                        hasBlocks = true,
+                        onTogglePlay = { viewModel.togglePlayback() },
+                        onAddMedia = { launchPhotoPicker() },
+                        onAddText = {
+                            val blockId = state.selectedBlockId ?: state.blocks.firstOrNull()?.id
+                            if (blockId != null) {
+                                viewModel.addTextLayer(blockId)
+                                val newLayerId = viewModel.state.value.selectedLayerId
+                                if (newLayerId != null) {
+                                    editingLayerId = newLayerId
+                                    floatingText = "Text"
+                                }
+                            }
+                        },
+                        onAddLottie = { showLottiePicker = true },
+                        onHelp = { showHelp = true }
                     )
                 }
             }
@@ -436,7 +440,6 @@ private fun EditorBottomToolbar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
