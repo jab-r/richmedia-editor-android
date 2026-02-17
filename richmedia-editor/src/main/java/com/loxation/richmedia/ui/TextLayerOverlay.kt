@@ -56,6 +56,7 @@ internal fun TextLayerOverlay(
     isEditing: Boolean,
     isPlaying: Boolean,
     onSelected: () -> Unit,
+    onTapped: (() -> Unit)? = null,
     onPositionChanged: (LayerPosition) -> Unit,
     onLongPress: (() -> Unit)? = null
 ) {
@@ -134,6 +135,7 @@ internal fun TextLayerOverlay(
                                     change.consume()
                                     if (!isDragging && !longPressFired) {
                                         onSelected()
+                                        onTapped?.invoke()
                                     }
                                     if (isDragging) {
                                         val nx = (currentX / canvasSize.width).coerceIn(0f, 1f)

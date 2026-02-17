@@ -131,7 +131,7 @@ fun AnimatedPostEditorScreen(
             )
         },
     ) { padding ->
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
@@ -144,18 +144,22 @@ fun AnimatedPostEditorScreen(
                     )
                 )
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                if (state.blocks.isEmpty()) {
-                    Box(
-                        modifier = Modifier.weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        EmptyStateView(onAddMedia = { launchPhotoPicker() })
-                    }
-                } else {
+            val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            val toolbarHeight = 84.dp
+            val toolbarSpacer = 12.dp
+            val horizontalPadding = 16.dp
+            val pageIndicatorHeight = if (state.blocks.size > 1) 56.dp else 0.dp
+            val mediaWidth = (maxWidth - horizontalPadding * 2).coerceAtLeast(0.dp)
+            val mediaHeight = mediaWidth * (16f / 9f)
+            val toolbarMargin = 12.dp
+            val desiredToolbarTop = mediaHeight + pageIndicatorHeight + toolbarMargin
+            val maxToolbarTop = (maxHeight - navBarBottom - toolbarSpacer - toolbarHeight).coerceAtLeast(0.dp)
+            val toolbarTop = desiredToolbarTop.coerceAtMost(maxToolbarTop)
+
+            if (state.blocks.isEmpty()) {
+                EmptyStateView(onAddMedia = { launchPhotoPicker() })
+            } else {
+                Box(modifier = Modifier.fillMaxSize()) {
                     GalleryCanvasView(
                         blocks = state.blocks,
                         selectedBlockId = state.selectedBlockId,
@@ -164,6 +168,9 @@ fun AnimatedPostEditorScreen(
                         localImages = viewModel.localImages,
                         onBlockSelected = { viewModel.selectBlock(it) },
                         onLayerSelected = { layerId, blockId ->
+                            viewModel.selectLayer(layerId, blockId)
+                        },
+                        onLayerTapped = { layerId, blockId ->
                             viewModel.selectLayer(layerId, blockId)
                             // Single tap: enter inline text editing
                             editingLayerId = layerId
@@ -194,10 +201,12 @@ fun AnimatedPostEditorScreen(
                             viewModel.selectLayer(layerId, blockId)
                             showTextEditor = true
                         },
-                        modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = horizontalPadding)
                     )
 
-                    // Toolbar at bottom of column, inside Scaffold's padded content area
+                    // Floating toolbar above media
                     EditorBottomToolbar(
                         isPlaying = state.isPlaying,
                         hasBlocks = true,
@@ -215,7 +224,10 @@ fun AnimatedPostEditorScreen(
                             }
                         },
                         onAddLottie = { showLottiePicker = true },
-                        onHelp = { showHelp = true }
+                        onHelp = { showHelp = true },
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = toolbarTop)
                     )
                 }
             }
@@ -431,9 +443,13 @@ private fun EditorBottomToolbar(
     onAddMedia: () -> Unit,
     onAddText: () -> Unit,
     onAddLottie: () -> Unit,
-    onHelp: () -> Unit
+    onHelp: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Surface(tonalElevation = 3.dp) {
+    Surface(
+        tonalElevation = 3.dp,
+        modifier = modifier
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

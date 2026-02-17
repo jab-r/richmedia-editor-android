@@ -36,6 +36,7 @@ internal fun GalleryCanvasView(
     localImages: Map<String, Bitmap>,
     onBlockSelected: (String) -> Unit,
     onLayerSelected: (layerId: String, blockId: String) -> Unit,
+    onLayerTapped: ((layerId: String, blockId: String) -> Unit)? = null,
     onLayerPositionChanged: (layerId: String, blockId: String, LayerPosition) -> Unit,
     onMediaTransformChanged: (MediaTransform, blockId: String) -> Unit,
     onTapCanvas: () -> Unit,
@@ -73,6 +74,7 @@ internal fun GalleryCanvasView(
                     localImages = localImages,
                     selectedLayerId = if (block.id == selectedBlockId) selectedLayerId else null,
                     onLayerSelected = { layerId -> onLayerSelected(layerId, block.id) },
+                    onLayerTapped = onLayerTapped?.let { tap -> { layerId -> tap(layerId, block.id) } },
                     onLayerPositionChanged = { layerId, position ->
                         onLayerPositionChanged(layerId, block.id, position)
                     },

@@ -47,6 +47,7 @@ internal fun MediaCanvasView(
     localImages: Map<String, Bitmap>,
     selectedLayerId: String?,
     onLayerSelected: (layerId: String) -> Unit,
+    onLayerTapped: ((layerId: String) -> Unit)? = null,
     onLayerPositionChanged: (layerId: String, LayerPosition) -> Unit,
     onMediaTransformChanged: (MediaTransform) -> Unit,
     onTapCanvas: () -> Unit,
@@ -174,6 +175,7 @@ internal fun MediaCanvasView(
                     isEditing = isEditing,
                     isPlaying = isPlaying,
                     onSelected = { onLayerSelected(layer.id) },
+                    onTapped = { onLayerTapped?.invoke(layer.id) },
                     onPositionChanged = { position -> onLayerPositionChanged(layer.id, position) },
                     onLongPress = { onLayerLongPress?.invoke(layer.id) }
                 )
