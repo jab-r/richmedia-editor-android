@@ -260,7 +260,11 @@ private fun AnimatedPreviewText(
             Modifier.graphicsLayer { rotationY = r; cameraDistance = 12f * density }
         }
         AnimationPreset.typewriter -> Modifier // static preview for typewriter
-        AnimationPreset.motionPath, AnimationPreset.curvePath -> Modifier
+        AnimationPreset.motionPath, AnimationPreset.curvePath -> {
+            val x by infiniteTransition.animateFloat(-10f, 10f, infiniteRepeatable(tween(1200), RepeatMode.Reverse), "x")
+            val y by infiniteTransition.animateFloat(-6f, 6f, infiniteRepeatable(tween(800), RepeatMode.Reverse), "y")
+            Modifier.offset(x = x.dp, y = y.dp)
+        }
     }
 
     Text(

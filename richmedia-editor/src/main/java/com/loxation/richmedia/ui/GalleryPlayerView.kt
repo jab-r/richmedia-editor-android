@@ -44,6 +44,7 @@ import coil.compose.AsyncImage
 import com.airbnb.lottie.compose.*
 import com.loxation.richmedia.model.*
 import com.loxation.richmedia.service.AnimationRenderer
+import com.loxation.richmedia.service.PathAnimationRenderer
 import com.loxation.richmedia.util.fromHex
 
 /**
@@ -297,6 +298,21 @@ private fun PlayerTextLayer(
         Modifier
     }
 
+    val pathModifier = if (isPlaying && layer.path != null &&
+        (layer.animation?.preset == AnimationPreset.motionPath || layer.animation?.preset == AnimationPreset.curvePath)
+    ) {
+        val anim = layer.animation!!
+        PathAnimationRenderer.pathModifier(
+            path = layer.path,
+            canvasSize = canvasSize,
+            durationMs = (anim.duration * 1000).toInt(),
+            delayMs = (anim.delay * 1000).toInt(),
+            loop = anim.loop
+        )
+    } else {
+        Modifier
+    }
+
     Box(
         modifier = Modifier
             .offset(
@@ -310,6 +326,7 @@ private fun PlayerTextLayer(
                 transformOrigin = androidx.compose.ui.graphics.TransformOrigin.Center
             }
             .then(animModifier)
+            .then(pathModifier)
     ) {
         Text(
             text = layer.text,

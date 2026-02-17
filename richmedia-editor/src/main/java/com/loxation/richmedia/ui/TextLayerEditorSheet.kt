@@ -32,7 +32,8 @@ import com.loxation.richmedia.util.fromHex
 fun TextLayerEditorSheet(
     layer: TextLayer,
     onSave: (TextLayer) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onDrawPath: (() -> Unit)? = null
 ) {
     var editedLayer by remember { mutableStateOf(layer) }
     var showAnimationPicker by remember { mutableStateOf(false) }
@@ -86,6 +87,16 @@ fun TextLayerEditorSheet(
                     }
                 }
             }
+
+            Spacer(Modifier.height(12.dp))
+
+            // --- Text Color ---
+            Text("Text Color", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(4.dp))
+            ColorPickerRow(
+                selectedColor = editedLayer.style.color,
+                onColorSelected = { editedLayer = editedLayer.copy(style = editedLayer.style.copy(color = it)) }
+            )
 
             Spacer(Modifier.height(12.dp))
 
@@ -165,6 +176,13 @@ fun TextLayerEditorSheet(
 
             if (editedLayer.style.shadow != null) {
                 val shadow = editedLayer.style.shadow!!
+                Text("Shadow Color", style = MaterialTheme.typography.labelSmall)
+                Spacer(Modifier.height(2.dp))
+                ColorPickerRow(
+                    selectedColor = shadow.color,
+                    onColorSelected = { editedLayer = editedLayer.copy(style = editedLayer.style.copy(shadow = shadow.copy(color = it))) }
+                )
+                Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Radius: ${shadow.radius.toInt()}", style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.weight(1f))
@@ -207,6 +225,13 @@ fun TextLayerEditorSheet(
 
             if (editedLayer.style.outline != null) {
                 val outline = editedLayer.style.outline!!
+                Text("Outline Color", style = MaterialTheme.typography.labelSmall)
+                Spacer(Modifier.height(2.dp))
+                ColorPickerRow(
+                    selectedColor = outline.color,
+                    onColorSelected = { editedLayer = editedLayer.copy(style = editedLayer.style.copy(outline = outline.copy(color = it))) }
+                )
+                Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Width: ${outline.width.toInt()}", style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.weight(1f))
@@ -260,7 +285,7 @@ fun TextLayerEditorSheet(
                 }
 
                 // Loop toggle for looping presets
-                if (anim.preset.category == AnimationCategory.LOOP) {
+                if (anim.preset.category == AnimationCategory.LOOP || anim.preset.category == AnimationCategory.PATH) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Loop", style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.weight(1f))
@@ -269,6 +294,26 @@ fun TextLayerEditorSheet(
                             onCheckedChange = { editedLayer = editedLayer.copy(animation = anim.copy(loop = it)) }
                         )
                     }
+                }
+
+                // Path drawing for motionPath/curvePath
+                if (anim.preset == AnimationPreset.motionPath || anim.preset == AnimationPreset.curvePath) {
+                    Spacer(Modifier.height(4.dp))
+                    if (editedLayer.path != null) {
+                        Text(
+                            "${editedLayer.path!!.points.size} points \u2022 ${editedLayer.path!!.type.name}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(4.dp))
+                    }
+                    OutlinedButton(
+                        onClick = { onDrawPath?.invoke() },
+                        enabled = onDrawPath != null
+                    ) {
+                        Text(if (editedLayer.path != null) "Redraw Path" else "Draw Path")
+                    }
+                    Spacer(Modifier.height(4.dp))
                 }
 
                 TextButton(

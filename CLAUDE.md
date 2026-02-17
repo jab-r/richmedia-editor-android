@@ -51,6 +51,40 @@ iOS counterpart: `../richmedia-editor` (Swift Package). Keep models JSON-compati
 - Material 3 for UI components
 - Color stored as hex strings (`#RRGGBB`)
 
+## Lessons Learned
+
+### Material Icons
+
+The default `material3` dependency only includes a small set of icons (`Icons.Default.*`). Icons like `Pause`, `TextFields`, `TouchApp`, `AutoAwesome`, `Palette`, `Videocam` require `androidx.compose.material:material-icons-extended`. This dependency is already added to `build.gradle`.
+
+### Text Outline Rendering
+
+Android Compose has no built-in text stroke/outline. Use a **two-pass approach**: render `Text` with `drawStyle = Stroke(width)` for the outline behind, then render normal `Text` on top for the fill. Both must share identical `TextStyle` (font, size, alignment) to align perfectly.
+
+### Compose Gesture Stacking
+
+Multiple gesture detectors can coexist on the same composable via chained `.pointerInput` blocks — e.g., `detectTapGestures` (tap + long press) in one block and `detectDragGestures` in another, plus `.transformable` for pinch/rotate. Order matters: earlier modifiers get priority.
+
+### Column/Row Don't Have a `spacing` Parameter
+
+Unlike SwiftUI's `VStack(spacing:)`, Compose `Column` and `Row` use `verticalArrangement = Arrangement.spacedBy(X.dp)`. Writing `Column(spacing = 0.dp)` won't compile.
+
+### ExoPlayer Lifecycle
+
+Always call `player.release()` in a `DisposableEffect(Unit) { onDispose { ... } }` block. For editing mode, set `volume = 0f` (muted) and control playback via `LaunchedEffect(isPlaying)`.
+
+### Lottie Compose Integration
+
+Use `rememberLottieComposition(LottieCompositionSpec.JsonString(jsonData))` for inline JSON. Pair with `animateLottieCompositionAsState(composition, isPlaying, iterations)`. The `iterations` param uses `LottieConstants.IterateForever` for looping.
+
+### AnimationRenderer Completeness
+
+All 30 `AnimationPreset` enum values must have explicit `when` branches — avoid `else -> Modifier` catch-alls that silently swallow new presets. Use explicit `AnimationPreset.motionPath, AnimationPreset.curvePath -> Modifier` for unimplemented path animations.
+
+### GalleryCanvasView Pager Navigation
+
+Use `rememberCoroutineScope()` + `pagerState.animateScrollToPage()` for programmatic page changes (prev/next buttons). `HorizontalPager` doesn't expose a direct `currentPage` setter.
+
 ## Do NOT
 
 - Add HTML export (server-side rendering handles it)

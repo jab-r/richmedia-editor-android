@@ -1,7 +1,12 @@
 package com.loxation.richmedia.ui
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.location.Location
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,11 +20,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.loxation.richmedia.model.AnimationPreset
 import com.loxation.richmedia.model.MediaInput
 import com.loxation.richmedia.model.RichPostContent
+import com.loxation.richmedia.model.TextAnimation
 import com.loxation.richmedia.model.TextLayer
 import com.loxation.richmedia.viewmodel.AnimatedPostEditorViewModel
 
@@ -44,7 +52,6 @@ fun AnimatedPostEditorScreen(
     existingLocalImages: Map<String, Bitmap> = emptyMap(),
     onComplete: (RichPostContent, Map<String, Bitmap>, Location?) -> Unit,
     onCancel: () -> Unit,
-    onRequestMedia: (() -> Unit)? = null,
     viewModel: AnimatedPostEditorViewModel = viewModel()
 ) {
     LaunchedEffect(Unit) {
@@ -56,10 +63,40 @@ fun AnimatedPostEditorScreen(
     }
 
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
     var showTextEditor by remember { mutableStateOf(false) }
     var showHelp by remember { mutableStateOf(false) }
+    var showLottiePicker by remember { mutableStateOf(false) }
+    var showPathDrawing by remember { mutableStateOf(false) }
     var editingLayerId by remember { mutableStateOf<String?>(null) }
     var floatingText by remember { mutableStateOf("") }
+
+    // Photo picker launcher
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(10)
+    ) { uris: List<Uri> ->
+        uris.forEach { uri ->
+            val mimeType = context.contentResolver.getType(uri)
+            if (mimeType?.startsWith("video/") == true) {
+                viewModel.addVideoBlock(uri)
+            } else {
+                val bitmap = runCatching {
+                    context.contentResolver.openInputStream(uri)?.use { stream ->
+                        BitmapFactory.decodeStream(stream)
+                    }
+                }.getOrNull()
+                if (bitmap != null) {
+                    viewModel.addImageBlock(bitmap)
+                }
+            }
+        }
+    }
+
+    val launchPhotoPicker = {
+        photoPickerLauncher.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+        )
+    }
 
     // Clear editing state when playback starts
     LaunchedEffect(state.isPlaying) {
@@ -99,7 +136,7 @@ fun AnimatedPostEditorScreen(
                     isPlaying = state.isPlaying,
                     hasBlocks = state.blocks.isNotEmpty(),
                     onTogglePlay = { viewModel.togglePlayback() },
-                    onAddMedia = { onRequestMedia?.invoke() },
+                    onAddMedia = { launchPhotoPicker() },
                     onAddText = {
                         val blockId = state.selectedBlockId ?: state.blocks.firstOrNull()?.id
                         if (blockId != null) {
@@ -111,6 +148,7 @@ fun AnimatedPostEditorScreen(
                             }
                         }
                     },
+                    onAddLottie = { showLottiePicker = true },
                     onHelp = { showHelp = true }
                 )
             }
@@ -131,7 +169,7 @@ fun AnimatedPostEditorScreen(
             contentAlignment = Alignment.Center
         ) {
             if (state.blocks.isEmpty()) {
-                EmptyStateView(onAddMedia = { onRequestMedia?.invoke() })
+                EmptyStateView(onAddMedia = { launchPhotoPicker() })
             } else {
                 Column(
                     modifier = Modifier.fillMaxSize(),
@@ -226,9 +264,52 @@ fun AnimatedPostEditorScreen(
                     }
                     showTextEditor = false
                 },
-                onDismiss = { showTextEditor = false }
+                onDismiss = { showTextEditor = false },
+                onDrawPath = {
+                    showTextEditor = false
+                    showPathDrawing = true
+                }
             )
         }
+    }
+
+    // Lottie picker sheet
+    if (showLottiePicker) {
+        val blockId = state.selectedBlockId ?: state.blocks.firstOrNull()?.id
+        LottiePickerView(
+            onSelect = { animation ->
+                if (blockId != null) {
+                    viewModel.setLottieOverlay(animation, blockId)
+                }
+                showLottiePicker = false
+            },
+            onDismiss = { showLottiePicker = false }
+        )
+    }
+
+    // Path drawing sheet
+    if (showPathDrawing) {
+        val blockId = state.selectedBlockId
+        val layerId = state.selectedLayerId
+        PathDrawingView(
+            onComplete = { path ->
+                if (blockId != null && layerId != null) {
+                    viewModel.updateLayer(layerId, blockId) { layer ->
+                        val animation = layer.animation ?: TextAnimation(preset = AnimationPreset.motionPath)
+                        layer.copy(
+                            path = path,
+                            animation = if (animation.preset != AnimationPreset.motionPath && animation.preset != AnimationPreset.curvePath) {
+                                TextAnimation(preset = AnimationPreset.motionPath, duration = animation.duration, delay = animation.delay, loop = true)
+                            } else {
+                                animation.copy(loop = true)
+                            }
+                        )
+                    }
+                }
+                showPathDrawing = false
+            },
+            onDismiss = { showPathDrawing = false }
+        )
     }
 
     // Help sheet
@@ -347,6 +428,7 @@ private fun EditorBottomToolbar(
     onTogglePlay: () -> Unit,
     onAddMedia: () -> Unit,
     onAddText: () -> Unit,
+    onAddLottie: () -> Unit,
     onHelp: () -> Unit
 ) {
     Surface(tonalElevation = 3.dp) {
@@ -380,6 +462,15 @@ private fun EditorBottomToolbar(
                 tint = Color(0xFF4CAF50),
                 enabled = hasBlocks,
                 onClick = onAddText
+            )
+
+            // Lottie
+            ToolbarButton(
+                icon = Icons.Default.AutoAwesome,
+                label = "Lottie",
+                tint = Color(0xFFFF9800),
+                enabled = hasBlocks,
+                onClick = onAddLottie
             )
 
             // Help

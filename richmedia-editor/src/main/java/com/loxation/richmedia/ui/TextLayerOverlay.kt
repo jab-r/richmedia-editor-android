@@ -37,8 +37,10 @@ import androidx.compose.ui.unit.sp
 import com.loxation.richmedia.model.LayerPosition
 import com.loxation.richmedia.model.TextAlignment
 import com.loxation.richmedia.model.TextLayer
+import com.loxation.richmedia.model.AnimationPreset
 import com.loxation.richmedia.model.TextLayerStyle
 import com.loxation.richmedia.service.AnimationRenderer
+import com.loxation.richmedia.service.PathAnimationRenderer
 import com.loxation.richmedia.util.fromHex
 
 /**
@@ -73,6 +75,21 @@ internal fun TextLayerOverlay(
         Modifier
     }
 
+    val pathModifier = if (isPlaying && layer.path != null &&
+        (layer.animation?.preset == AnimationPreset.motionPath || layer.animation?.preset == AnimationPreset.curvePath)
+    ) {
+        val anim = layer.animation!!
+        PathAnimationRenderer.pathModifier(
+            path = layer.path,
+            canvasSize = canvasSize,
+            durationMs = (anim.duration * 1000).toInt(),
+            delayMs = (anim.delay * 1000).toInt(),
+            loop = anim.loop
+        )
+    } else {
+        Modifier
+    }
+
     // Pinch-to-scale and rotation gesture
     val transformableState = rememberTransformableState { zoomChange, _, rotationChange ->
         currentScale = (currentScale * zoomChange).coerceIn(0.5f, 3.0f)
@@ -92,6 +109,7 @@ internal fun TextLayerOverlay(
                 transformOrigin = androidx.compose.ui.graphics.TransformOrigin.Center
             }
             .then(animModifier)
+            .then(pathModifier)
             .then(
                 if (isSelected) Modifier.border(2.dp, Color(0xFF2196F3), RoundedCornerShape(4.dp))
                 else Modifier
