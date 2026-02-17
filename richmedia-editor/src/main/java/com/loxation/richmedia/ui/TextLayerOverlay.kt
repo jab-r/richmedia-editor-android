@@ -2,10 +2,8 @@ package com.loxation.richmedia.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -92,12 +90,6 @@ internal fun TextLayerOverlay(
         Modifier
     }
 
-    // Pinch-to-scale and rotation gesture
-    val transformableState = rememberTransformableState { zoomChange, _, rotationChange ->
-        currentScale = (currentScale * zoomChange).coerceIn(0.5f, 3.0f)
-        currentRotation = (currentRotation + rotationChange) % 360f
-    }
-
     Box(
         modifier = Modifier
             .offset(
@@ -126,25 +118,13 @@ internal fun TextLayerOverlay(
                             )
                         }
                         .pointerInput(layer.id) {
-                            detectDragGestures(
-                                onDragStart = { onSelected() },
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    currentX = (currentX + dragAmount.x / canvasSize.width).coerceIn(0f, 1f)
-                                    currentY = (currentY + dragAmount.y / canvasSize.height).coerceIn(0f, 1f)
-                                },
-                                onDragEnd = {
-                                    onPositionChanged(pos.copy(x = currentX, y = currentY, scale = currentScale, rotation = currentRotation))
-                                }
-                            )
+                            detectTransformGestures { _, pan, zoom, rotation ->
+                                currentX = (currentX + pan.x / canvasSize.width).coerceIn(0f, 1f)
+                                currentY = (currentY + pan.y / canvasSize.height).coerceIn(0f, 1f)
+                                currentScale = (currentScale * zoom).coerceIn(0.5f, 3.0f)
+                                currentRotation = (currentRotation + rotation) % 360f
+                            }
                         }
-                        .transformable(state = transformableState, lockRotationOnZoomPan = false)
-                } else Modifier
-            )
-            .then(
-                if (isEditing) {
-                    // On gesture end, commit scale/rotation
-                    Modifier
                 } else Modifier
             )
     ) {
