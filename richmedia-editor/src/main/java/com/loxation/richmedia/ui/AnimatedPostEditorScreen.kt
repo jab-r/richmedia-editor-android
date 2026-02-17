@@ -173,6 +173,7 @@ fun AnimatedPostEditorScreen(
             } else {
                 Column(
                     modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     GalleryCanvasView(
@@ -213,7 +214,7 @@ fun AnimatedPostEditorScreen(
                             viewModel.selectLayer(layerId, blockId)
                             showTextEditor = true
                         },
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
                     )
                 }
             }

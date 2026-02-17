@@ -52,8 +52,12 @@ internal fun GalleryCanvasView(
         blocks.getOrNull(pagerState.currentPage)?.id?.let { onBlockSelected(it) }
     }
 
-    Column(modifier = modifier) {
-        // Gallery pager
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Gallery pager — aspect ratio naturally falls back to height-first
+        // when the 9:16 canvas would exceed available vertical space
         Box(
             modifier = Modifier
                 .aspectRatio(9f / 16f)

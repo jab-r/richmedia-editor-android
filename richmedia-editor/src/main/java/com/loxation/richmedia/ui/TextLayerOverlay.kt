@@ -62,12 +62,14 @@ internal fun TextLayerOverlay(
     val pos = layer.position
     val style = layer.style
 
-    val offsetXPx = pos.x * canvasSize.width
-    val offsetYPx = pos.y * canvasSize.height
-
     // Mutable gesture state for smooth interaction
+    var currentX by remember(pos.x) { mutableFloatStateOf(pos.x) }
+    var currentY by remember(pos.y) { mutableFloatStateOf(pos.y) }
     var currentScale by remember(pos.scale) { mutableFloatStateOf(pos.scale) }
     var currentRotation by remember(pos.rotation) { mutableFloatStateOf(pos.rotation) }
+
+    val offsetXPx = currentX * canvasSize.width
+    val offsetYPx = currentY * canvasSize.height
 
     val animModifier = if (isPlaying) {
         AnimationRenderer.animatedModifier(layer)
@@ -128,13 +130,11 @@ internal fun TextLayerOverlay(
                                 onDragStart = { onSelected() },
                                 onDrag = { change, dragAmount ->
                                     change.consume()
-                                    val newX = (pos.x + dragAmount.x / canvasSize.width).coerceIn(0f, 1f)
-                                    val newY = (pos.y + dragAmount.y / canvasSize.height).coerceIn(0f, 1f)
-                                    onPositionChanged(pos.copy(x = newX, y = newY))
+                                    currentX = (currentX + dragAmount.x / canvasSize.width).coerceIn(0f, 1f)
+                                    currentY = (currentY + dragAmount.y / canvasSize.height).coerceIn(0f, 1f)
                                 },
                                 onDragEnd = {
-                                    // Commit scale/rotation changes
-                                    onPositionChanged(pos.copy(scale = currentScale, rotation = currentRotation))
+                                    onPositionChanged(pos.copy(x = currentX, y = currentY, scale = currentScale, rotation = currentRotation))
                                 }
                             )
                         }
@@ -151,10 +151,10 @@ internal fun TextLayerOverlay(
         StyledText(layer = layer, style = style)
     }
 
-    // Commit scale/rotation changes when gestures end
-    LaunchedEffect(currentScale, currentRotation) {
-        if (isEditing && (currentScale != pos.scale || currentRotation != pos.rotation)) {
-            onPositionChanged(pos.copy(scale = currentScale, rotation = currentRotation))
+    // Commit gesture changes when they end
+    LaunchedEffect(currentX, currentY, currentScale, currentRotation) {
+        if (isEditing && (currentX != pos.x || currentY != pos.y || currentScale != pos.scale || currentRotation != pos.rotation)) {
+            onPositionChanged(pos.copy(x = currentX, y = currentY, scale = currentScale, rotation = currentRotation))
         }
     }
 }
