@@ -85,6 +85,20 @@ All 30 `AnimationPreset` enum values must have explicit `when` branches — avoi
 
 Use `rememberCoroutineScope()` + `pagerState.animateScrollToPage()` for programmatic page changes (prev/next buttons). `HorizontalPager` doesn't expose a direct `currentPage` setter.
 
+### Editor Bottom Toolbar Clipping — BLOCKING FAILURE
+
+The `EditorBottomToolbar` in `AnimatedPostEditorScreen` gets half-hidden at the bottom of the screen. This is a **blocking issue** — no further toolbar-related work should proceed until it is resolved.
+
+**Host app context**: The editor is launched inside a Compose `Dialog` with `decorFitsSystemWindows = false` (in `PublicPostComposerSheet.kt`). The host app targets SDK 35 (Android 15 enforces edge-to-edge). The XML layout uses `fitsSystemWindows="true"` on `DrawerLayout` and `CoordinatorLayout`.
+
+**All attempted fixes FAILED on device:**
+1. **Scaffold `bottomBar`** — Toolbar in Scaffold's `bottomBar` slot is still clipped.
+2. **Box overlay with `navigationBarsPadding()` inside Scaffold** — No effect; Scaffold consumes the insets.
+3. **Box overlay with `navigationBarsPadding()` outside Scaffold** — Toolbar still clipped; insets appear to be 0 for siblings.
+4. **Toolbar inside Scaffold content Column** (below `GalleryCanvasView` with `weight(1f)`) — Still clipped. Scaffold's own content padding doesn't provide enough bottom space.
+
+**Root cause is unknown.** Likely related to how the Compose `Dialog` window interacts with the host app's inset handling. Needs on-device investigation with Layout Inspector to determine what inset values are actually reported and where space is being lost.
+
 ## Do NOT
 
 - Add HTML export (server-side rendering handles it)

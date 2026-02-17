@@ -135,7 +135,6 @@ fun AnimatedPostEditorScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .navigationBarsPadding()
                 .background(
                     Brush.linearGradient(
                         colors = listOf(
@@ -197,10 +196,8 @@ fun AnimatedPostEditorScreen(
                         },
                         modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
                     )
-                }
 
-                // Bottom toolbar — inline so it's always visible
-                if (state.blocks.isNotEmpty()) {
+                    // Toolbar at bottom of column, inside Scaffold's padded content area
                     EditorBottomToolbar(
                         isPlaying = state.isPlaying,
                         hasBlocks = true,

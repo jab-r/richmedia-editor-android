@@ -56,8 +56,6 @@ internal fun GalleryCanvasView(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Gallery pager — aspect ratio naturally falls back to height-first
-        // when the 9:16 canvas would exceed available vertical space
         Box(
             modifier = Modifier
                 .aspectRatio(9f / 16f)
