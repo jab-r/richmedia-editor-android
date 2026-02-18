@@ -123,6 +123,7 @@ internal fun TextLayerOverlay(
                             val down = awaitFirstDown()
                             down.consume()
                             val downPosition = down.position
+                            var accumulatedDrag = Offset.Zero
                             var isDragging = false
                             var longPressFired = false
                             val downTime = System.currentTimeMillis()
@@ -158,16 +159,20 @@ internal fun TextLayerOverlay(
                                     }
                                 }
 
+                                val delta = change.positionChange()
+                                if (!isDragging) {
+                                    accumulatedDrag += delta
+                                }
                                 // Check total distance from initial touch point
                                 val totalDist = (change.position - downPosition).getDistance()
-                                if (!isDragging && totalDist > touchSlop) {
+                                val dragDist = accumulatedDrag.getDistance()
+                                if (!isDragging && (totalDist > touchSlop || dragDist > touchSlop * 0.5f)) {
                                     isDragging = true
                                     onSelected()
                                 }
 
                                 if (isDragging) {
                                     change.consume()
-                                    val delta = change.positionChange()
                                     currentX += delta.x
                                     currentY += delta.y
                                 }

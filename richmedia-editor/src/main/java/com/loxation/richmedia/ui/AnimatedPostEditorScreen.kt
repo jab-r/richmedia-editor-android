@@ -235,7 +235,10 @@ fun AnimatedPostEditorScreen(
             // Floating text input above keyboard
             if (editingLayerId != null) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = navBarBottom + toolbarHeight + toolbarSpacer)
+                        .imePadding(),
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     FloatingTextInput(
