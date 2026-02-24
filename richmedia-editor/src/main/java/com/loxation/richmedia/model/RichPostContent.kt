@@ -16,7 +16,8 @@ private val json = Json {
 @Serializable
 data class RichPostContent(
     val version: Int = 1,
-    val blocks: List<RichPostBlock> = emptyList()
+    val blocks: List<RichPostBlock> = emptyList(),
+    val musicTrack: MusicTrack? = null
 ) {
     fun toJsonString(): String? = runCatching { json.encodeToString(this) }.getOrNull()
 

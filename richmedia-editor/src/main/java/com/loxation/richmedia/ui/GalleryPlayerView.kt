@@ -40,11 +40,13 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
 import com.airbnb.lottie.compose.*
 import com.loxation.richmedia.model.*
 import com.loxation.richmedia.service.AnimationRenderer
 import com.loxation.richmedia.service.PathAnimationRenderer
+import com.loxation.richmedia.service.PreviewAudioPlayer
 import com.loxation.richmedia.util.fromHex
 
 /**
@@ -65,6 +67,31 @@ fun GalleryPlayerView(
 
     val pagerState = rememberPagerState(pageCount = { blocks.size })
     var isPlaying by remember { mutableStateOf(true) }
+
+    // Music playback
+    val context = LocalContext.current
+    val audioPlayer = remember { PreviewAudioPlayer(context) }
+
+    DisposableEffect(Unit) {
+        onDispose { audioPlayer.release() }
+    }
+
+    // Auto-play music when content has a track
+    LaunchedEffect(content.musicTrack) {
+        val track = content.musicTrack
+        if (track != null) {
+            audioPlayer.play(track)
+        } else {
+            audioPlayer.stop()
+        }
+    }
+
+    // Sync play/pause state with music
+    LaunchedEffect(isPlaying) {
+        if (content.musicTrack != null) {
+            if (isPlaying) audioPlayer.resume() else audioPlayer.pause()
+        }
+    }
 
     Box(
         modifier = modifier
@@ -177,6 +204,32 @@ fun GalleryPlayerView(
                             modifier = Modifier.shadow(2.dp)
                         )
                     }
+                }
+            }
+
+            // Music title bar
+            content.musicTrack?.let { track ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = Color(0xFFE91E63),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "${track.trackName} — ${track.artistName}",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }

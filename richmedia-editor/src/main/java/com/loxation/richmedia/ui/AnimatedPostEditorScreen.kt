@@ -22,13 +22,16 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.loxation.richmedia.model.AnimationPreset
 import com.loxation.richmedia.model.MediaInput
+import com.loxation.richmedia.model.MusicTrack
 import com.loxation.richmedia.model.RichPostContent
 import com.loxation.richmedia.model.TextAnimation
 import com.loxation.richmedia.model.TextLayer
+import com.loxation.richmedia.service.PreviewAudioPlayer
 import com.loxation.richmedia.viewmodel.AnimatedPostEditorViewModel
 
 /**
@@ -68,8 +71,15 @@ fun AnimatedPostEditorScreen(
     var showHelp by remember { mutableStateOf(false) }
     var showLottiePicker by remember { mutableStateOf(false) }
     var showPathDrawing by remember { mutableStateOf(false) }
+    var showMusicPicker by remember { mutableStateOf(false) }
     var editingLayerId by remember { mutableStateOf<String?>(null) }
     var floatingText by remember { mutableStateOf("") }
+
+    // Audio preview player
+    val audioPlayer = remember { PreviewAudioPlayer(context) }
+    DisposableEffect(Unit) {
+        onDispose { audioPlayer.release() }
+    }
 
     // Photo picker launcher
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -160,6 +170,50 @@ fun AnimatedPostEditorScreen(
                 EmptyStateView(onAddMedia = { launchPhotoPicker() })
             } else {
                 Box(modifier = Modifier.fillMaxSize()) {
+                    // Music indicator pill
+                    if (state.musicTrack != null) {
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color.Black.copy(alpha = 0.6f),
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = 8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.MusicNote,
+                                    contentDescription = null,
+                                    tint = Color(0xFFE91E63),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    "${state.musicTrack!!.trackName} — ${state.musicTrack!!.artistName}",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.widthIn(max = 200.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                IconButton(
+                                    onClick = { viewModel.setMusicTrack(null) },
+                                    modifier = Modifier.size(20.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Remove music",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     GalleryCanvasView(
                         blocks = state.blocks,
                         selectedBlockId = state.selectedBlockId,
@@ -210,6 +264,7 @@ fun AnimatedPostEditorScreen(
                     EditorBottomToolbar(
                         isPlaying = state.isPlaying,
                         hasBlocks = true,
+                        hasMusicTrack = state.musicTrack != null,
                         onTogglePlay = { viewModel.togglePlayback() },
                         onAddMedia = { launchPhotoPicker() },
                         onAddText = {
@@ -224,6 +279,7 @@ fun AnimatedPostEditorScreen(
                             }
                         },
                         onAddLottie = { showLottiePicker = true },
+                        onMusic = { showMusicPicker = true },
                         onHelp = { showHelp = true },
                         modifier = Modifier
                             .align(Alignment.TopCenter)
@@ -326,6 +382,16 @@ fun AnimatedPostEditorScreen(
                 showPathDrawing = false
             },
             onDismiss = { showPathDrawing = false }
+        )
+    }
+
+    // Music search sheet
+    if (showMusicPicker) {
+        MusicSearchView(
+            currentTrack = state.musicTrack,
+            audioPlayer = audioPlayer,
+            onSelect = { track -> viewModel.setMusicTrack(track) },
+            onDismiss = { showMusicPicker = false }
         )
     }
 
@@ -442,10 +508,12 @@ private fun FloatingTextInput(
 private fun EditorBottomToolbar(
     isPlaying: Boolean,
     hasBlocks: Boolean,
+    hasMusicTrack: Boolean,
     onTogglePlay: () -> Unit,
     onAddMedia: () -> Unit,
     onAddText: () -> Unit,
     onAddLottie: () -> Unit,
+    onMusic: () -> Unit,
     onHelp: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -483,6 +551,14 @@ private fun EditorBottomToolbar(
                 tint = Color(0xFF4CAF50),
                 enabled = hasBlocks,
                 onClick = onAddText
+            )
+
+            // Music
+            ToolbarButton(
+                icon = Icons.Default.MusicNote,
+                label = "Music",
+                tint = if (hasMusicTrack) Color(0xFFE91E63) else Color(0xFFE91E63).copy(alpha = 0.6f),
+                onClick = onMusic
             )
 
             // Lottie

@@ -17,7 +17,8 @@ data class EditorState(
     val isPlaying: Boolean = false,
     val editingLayerId: String? = null,
     val showingStyleEditor: Boolean = false,
-    val showingAnimationPicker: Boolean = false
+    val showingAnimationPicker: Boolean = false,
+    val musicTrack: MusicTrack? = null
 ) {
     val selectedBlock: RichPostBlock?
         get() = blocks.find { it.id == selectedBlockId }
@@ -44,7 +45,11 @@ class AnimatedPostEditorViewModel : ViewModel() {
         private set
 
     val richContent: RichPostContent
-        get() = RichPostContent(version = 1, blocks = _state.value.blocks)
+        get() = RichPostContent(
+            version = 1,
+            blocks = _state.value.blocks,
+            musicTrack = _state.value.musicTrack
+        )
 
     // --- Block management ---
 
@@ -167,13 +172,18 @@ class AnimatedPostEditorViewModel : ViewModel() {
 
     // --- Load existing content ---
 
+    fun setMusicTrack(track: MusicTrack?) {
+        _state.update { it.copy(musicTrack = track) }
+    }
+
     fun loadContent(content: RichPostContent, images: Map<String, Bitmap> = emptyMap()) {
         localImages.clear()
         localImages.putAll(images)
         _state.update {
             EditorState(
                 blocks = content.blocks,
-                selectedBlockId = content.blocks.firstOrNull()?.id
+                selectedBlockId = content.blocks.firstOrNull()?.id,
+                musicTrack = content.musicTrack
             )
         }
     }
